@@ -77,6 +77,27 @@ def get_bbox_coord(csv_row):
     return (x1, y1), (x2, y2)
 
 
+def scale_bbox_coord(img, point1, point2, target_width, target_height):
+    x_scale = target_width / float(img.shape[1])
+    y_scale = target_height / float(img.shape[0])
+
+    (x1, y1) = point1
+    (x2, y2) = point2
+
+    x1_scaled = x1 * x_scale
+    y1_scaled = y1 * y_scale
+
+    x2_scaled = x2 * x_scale
+    y2_scaled = y2 * y_scale
+
+    print('Origin bbox coord: x1 = {}, y1 = {}'.format(x1, y1))
+    print('Scaled bbox coord: x1 = {}, y1 = {}. x_scale = {}, y_scale = {}'.format(x1_scaled, y1_scaled, x_scale, y_scale))
+    print('Origin bbox coord: x2 = {}, y2 = {}'.format(x2, y2))
+    print('Scaled bbox coord: x2 = {}, y2 = {}. x_scale = {}, y_scale = {}'.format(x2_scaled, y2_scaled, x_scale, y_scale))
+
+    return (int(x1_scaled), int(y1_scaled)), (int(x2_scaled), int(y2_scaled))
+
+
 def get_batch(root_dataset_dir):
     subdirs = get_sub_dirs(root_dataset_dir)
 
@@ -106,15 +127,17 @@ def get_batch(root_dataset_dir):
                 img = cv2.imread(img_filepath)
                 target_img = cv2.imread(target_img_filepath)
 
-                # img = cv2.resize(img, (IMG_HEIGHT, IMG_WIDTH))
-                # target_img = cv2.resize(target_img, (IMG_HEIGHT, IMG_WIDTH))
-
-                img_bbox_left_bottom, img_bbox_right_top = get_bbox_coord(row)
+                img_bbox_point1, img_bbox_point2 = get_bbox_coord(row)
                 target_img_bbox_left_bottom, target_img_bbox_right_top = get_bbox_coord(target_row)
+
+                img_bbox_point1, img_bbox_point2 = scale_bbox_coord(img, img_bbox_point1, img_bbox_point2, IMG_WIDTH, IMG_HEIGHT)
+
+                img = cv2.resize(img, (IMG_HEIGHT, IMG_WIDTH))
+                target_img = cv2.resize(target_img, (IMG_HEIGHT, IMG_WIDTH))
 
                 # return (img, img_bbox), (target_img, target_img_bbox)
 
-                cv2.rectangle(img, img_bbox_left_bottom, img_bbox_right_top, (255,0,0), 2)
+                cv2.rectangle(img, img_bbox_point1, img_bbox_point2, (255,0,0), 2)
                 cv2.imwrite('img_with_bbox.jpg', img)
 
                 cv2.rectangle(target_img, target_img_bbox_left_bottom, target_img_bbox_right_top, (255,0,0), 2)
