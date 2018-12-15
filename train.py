@@ -128,9 +128,10 @@ def get_batch(root_dataset_dir):
                 target_img = cv2.imread(target_img_filepath)
 
                 img_bbox_point1, img_bbox_point2 = get_bbox_coord(row)
-                target_img_bbox_left_bottom, target_img_bbox_right_top = get_bbox_coord(target_row)
+                target_img_bbox_point1, target_img_bbox_point2 = get_bbox_coord(target_row)
 
                 img_bbox_point1, img_bbox_point2 = scale_bbox_coord(img, img_bbox_point1, img_bbox_point2, IMG_WIDTH, IMG_HEIGHT)
+                target_img_bbox_point1, target_img_bbox_point2 = scale_bbox_coord(target_img, target_img_bbox_point1, target_img_bbox_point2, IMG_WIDTH, IMG_HEIGHT)
 
                 img = cv2.resize(img, (IMG_HEIGHT, IMG_WIDTH))
                 target_img = cv2.resize(target_img, (IMG_HEIGHT, IMG_WIDTH))
@@ -140,7 +141,7 @@ def get_batch(root_dataset_dir):
                 cv2.rectangle(img, img_bbox_point1, img_bbox_point2, (255,0,0), 2)
                 cv2.imwrite('img_with_bbox.jpg', img)
 
-                cv2.rectangle(target_img, target_img_bbox_left_bottom, target_img_bbox_right_top, (255,0,0), 2)
+                cv2.rectangle(target_img, target_img_bbox_point1, target_img_bbox_point2, (255,0,0), 2)
                 cv2.imwrite('target_img_with_bbox.jpg', target_img)
 
                 print('img_filepath = {}'.format(img_filepath))
