@@ -1,42 +1,22 @@
+import os
+import datetime
+
 import numpy as np
 import cv2
-import os
 import pandas as pd
-
-os.environ['GLOG_minloglevel'] = '2'
 import caffe
 
-IMG_1 = '1.jpg'
-IMG_2 = '2.jpg'
-MODEL_FILE = 'tracker.prototxt'
+from common import utils
+
+# os.environ['GLOG_minloglevel'] = '2'
+
+MODEL_FILE = 'train.prototxt'
 SOLVER_FILE = 'solver.prototxt'
+OUTPUT_DIR = 'output'
 TRAIN_DIR_PATH = '/home/user/vilin/MOT17/FRCNN/train'
 TEST_DIR_PATH = '/home/user/vilin/MOT17/FRCNN/test'
 IMG_HEIGHT = 227
 IMG_WIDTH = 227
-
-
-def test(solver):
-    accuracy = 0
-    batch_size = solver.test_nets[0].blobs['data'].num
-    test_iters = int(len(Xt) / batch_size)
-    for i in range(test_iters):
-        solver.test_nets[0].forward()
-        accuracy += solver.test_nets[0].blobs['accuracy'].data
-    accuracy /= test_iters
-
-    print("Accuracy: {:.3f}".format(accuracy))
-
-
-def train():
-    q = 1
-
-
-def img_to_net_input(img):
-    input = np.moveaxis(img, 2, 0)
-    input = np.expand_dims(input, axis=0)
-
-    return input
 
 
 def get_kvp_from_file(filepath):
@@ -90,15 +70,89 @@ def scale_bbox_coord(img, point1, point2, target_width, target_height):
     x2_scaled = x2 * x_scale
     y2_scaled = y2 * y_scale
 
-    print('Origin bbox coord: x1 = {}, y1 = {}'.format(x1, y1))
-    print('Scaled bbox coord: x1 = {}, y1 = {}. x_scale = {}, y_scale = {}'.format(x1_scaled, y1_scaled, x_scale, y_scale))
-    print('Origin bbox coord: x2 = {}, y2 = {}'.format(x2, y2))
-    print('Scaled bbox coord: x2 = {}, y2 = {}. x_scale = {}, y_scale = {}'.format(x2_scaled, y2_scaled, x_scale, y_scale))
+    # print('Origin bbox coord: x1 = {}, y1 = {}'.format(x1, y1))
+    # print('Scaled bbox coord: x1 = {}, y1 = {}. x_scale = {}, y_scale = {}'.format(x1_scaled, y1_scaled, x_scale, y_scale))
+    # print('Origin bbox coord: x2 = {}, y2 = {}'.format(x2, y2))
+    # print('Scaled bbox coord: x2 = {}, y2 = {}. x_scale = {}, y_scale = {}'.format(x2_scaled, y2_scaled, x_scale, y_scale))
 
     return (int(x1_scaled), int(y1_scaled)), (int(x2_scaled), int(y2_scaled))
 
 
-def get_batch(root_dataset_dir):
+def center_image_over_bbox(img, bbox):
+    cv2.imwrite('center_image_over_bbox_origin.jpg', img)
+
+    (x1, y1), (x2, y2) = bbox
+
+    x_bbox_center = (x1 + x2) / 2.0
+    x_bbox_center = int(x_bbox_center)
+
+    y_bbox_center = (y1 + y2) / 2.0
+    y_bbox_center = int(y_bbox_center)
+
+    x_img_center = img.shape[1] / 2.0
+    x_img_center = int(x_img_center)
+
+    y_img_center = img.shape[0] / 2.0
+    y_img_center = int(y_img_center)
+
+    top = 0
+    bottom = 0
+    left = 0
+    right = 0
+
+    x_diff = img.shape[1] - x_bbox_center
+    y_diff = img.shape[0] - y_bbox_center
+
+    x_already_filled = img.shape[1] - x_diff
+    y_already_filled = img.shape[0] - y_diff
+
+    # print('x_img_center = {}, x_bbox_center = {}, x_diff = {}'.format(x_img_center, x_bbox_center, x_diff))
+
+    if x_bbox_center < x_img_center:
+        left = abs(x_diff - x_already_filled)
+        left = int(left / 2.0)
+    elif x_bbox_center > x_img_center:
+        right = abs(x_diff - x_already_filled)
+        right = int(right / 2.0)
+
+    if y_bbox_center < y_img_center:
+        top = abs(y_diff - y_already_filled)
+        top = int(top / 2.0)
+    elif y_bbox_center < y_img_center:
+        bottom = abs(y_diff - y_already_filled)
+        bottom = int(bottom / 2.0)
+
+    # print('origin img.shape = {}'.format(img.shape))
+    if left != 0:
+        img = img[:, :-left]
+        # print('img - left = {}'.format(img.shape))
+
+    if right != 0:
+        img = img[:, right:]
+        # print('img - left = {}'.format(img.shape))
+
+    if bottom != 0:
+        img = img[:-bottom, :]
+        # print('img - bottom = {}'.format(img.shape))
+
+    if top != 0:
+        img = img[top:, :]
+        # print('img - top = {}'.format(img.shape))
+
+    result = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, 0)
+
+    # print('img + padding = {}'.format(result.shape))
+    # cv2.rectangle(result, (x1, y1), (x2, y2), (255, 0, 0), 16)
+    # cv2.circle(result, (x_bbox_center, y_bbox_center), 6, (255, 0, 0), 16)
+    # cv2.circle(result, (x_img_center, y_img_center), 6, (0, 0, 255), 16)
+    # cv2.line(result, (x_bbox_center, y_bbox_center), (x_img_center, y_img_center),(0, 255, 0), 4)
+
+    cv2.imwrite('img_centered_over_bbox.jpg', result)
+
+    return result
+
+
+def get_next_track_pair(root_dataset_dir):
     subdirs = get_sub_dirs(root_dataset_dir)
 
     for seq_dir_name in subdirs:
@@ -130,67 +184,47 @@ def get_batch(root_dataset_dir):
                 img_bbox_point1, img_bbox_point2 = get_bbox_coord(row)
                 target_img_bbox_point1, target_img_bbox_point2 = get_bbox_coord(target_row)
 
-                img_bbox_point1, img_bbox_point2 = scale_bbox_coord(img, img_bbox_point1, img_bbox_point2, IMG_WIDTH, IMG_HEIGHT)
+                img_centered = center_image_over_bbox(img, (img_bbox_point1, img_bbox_point2))
+
                 target_img_bbox_point1, target_img_bbox_point2 = scale_bbox_coord(target_img, target_img_bbox_point1, target_img_bbox_point2, IMG_WIDTH, IMG_HEIGHT)
 
-                img = cv2.resize(img, (IMG_HEIGHT, IMG_WIDTH))
-                target_img = cv2.resize(target_img, (IMG_HEIGHT, IMG_WIDTH))
+                img_centered = cv2.resize(img_centered, (IMG_WIDTH, IMG_HEIGHT))
+                target_img = cv2.resize(target_img, (IMG_WIDTH, IMG_HEIGHT))
 
-                # return (img, img_bbox), (target_img, target_img_bbox)
+                target_img_bbox = (target_img_bbox_point1, target_img_bbox_point2)
 
-                cv2.rectangle(img, img_bbox_point1, img_bbox_point2, (255,0,0), 2)
-                cv2.imwrite('img_with_bbox.jpg', img)
+                yield img_centered, target_img, target_img_bbox
 
-                cv2.rectangle(target_img, target_img_bbox_point1, target_img_bbox_point2, (255,0,0), 2)
-                cv2.imwrite('target_img_with_bbox.jpg', target_img)
-
-                print('img_filepath = {}'.format(img_filepath))
-                print('target_img_filepath = {}'.format(target_img_filepath))
-                print('img.shape = {}'.format(img.shape))
-                print('target_img.shape = {}'.format(target_img.shape))
-                break
-            break
-
-            print('object {}, frame count = {}'.format(name, group.shape[0]))
-            # print(group)
-        # print(y_df_grouped)
-        break
+            # print('object {}, frame count = {}'.format(name, group.shape[0]))
 
 
 def main():
     caffe.set_mode_gpu()
     caffe.set_device(0)
 
-    get_batch(TRAIN_DIR_PATH)
-
-    img_1_origin = cv2.imread(IMG_1)
-    img_2_origin = cv2.imread(IMG_2)
-
-    img_1_resized = cv2.resize(img_1_origin, (IMG_HEIGHT, IMG_WIDTH))
-    img_2_resized = cv2.resize(img_2_origin, (IMG_HEIGHT, IMG_WIDTH))
-
-    bbox = [1, 2, 3, 4]
-
-    net = caffe.Net(MODEL_FILE, caffe.TEST)
-
-    image_input = img_to_net_input(img_1_resized)
-    target_input = img_to_net_input(img_2_resized)
-    bbox_input = np.expand_dims(np.expand_dims(bbox, axis=3), axis=4)
-
-    net.blobs['image'].data[...] = image_input
-    net.blobs['target'].data[...] = target_input
-    net.blobs['bbox'].data[...] = bbox_input
-
-    # print(net.blobs['out'].data)
-
+    net = caffe.Net(MODEL_FILE, caffe.TRAIN)
     solver = caffe.SGDSolver(SOLVER_FILE)
-    solver.step(1)
-    # solver.net.backward()
 
-    # print('origin img_1_origin.shape = {}'.format(img_1_origin.shape))
-    # print('origin img_2_origin.shape = {}'.format(img_2_origin.shape))
-    # print('origin img_1_resized.shape = {}'.format(img_1_resized.shape))
-    # print('origin img_2_resized.shape = {}'.format(img_2_resized.shape))
+    for img, target_img, target_img_bbox_points in get_next_track_pair(TRAIN_DIR_PATH):
+        (x1_target, y1_target), (x2_target, y2_target) = target_img_bbox_points
+
+        target_img_bbox = [x1_target, y1_target, x2_target, y2_target]
+
+        img_input = utils.img_to_net_input(img)
+        target_input = utils.img_to_net_input(target_img)
+
+        target_bbox_input = np.expand_dims(np.expand_dims(target_img_bbox, axis=3), axis=4)
+
+        net.blobs['image'].data[...] = img_input
+        net.blobs['target'].data[...] = target_input
+        net.blobs['bbox'].data[...] = target_bbox_input
+
+        solver.step(1)
+        break
+
+    # model_filename = 'final_model_{}.caffemodel'.format(datetime.datetime.now().isoformat())
+    # model_filepath = os.path.join(OUTPUT_DIR, model_filename)
+    # net.save(model_filepath)
 
 
 if __name__ == '__main__':
