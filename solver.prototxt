@@ -1,5 +1,5 @@
-net: "tracker.prototxt"
-base_lr: 0.000001
+net: "train.prototxt"
+base_lr: 0.00001
 lr_policy: "step"
 gamma: 0.1
 stepsize: 100000
@@ -8,7 +8,7 @@ max_iter: 450000
 momentum: 0.9
 weight_decay: 0.0005
 snapshot: 50000
-snapshot_prefix: "SOLVERSTATE_DIR/caffenet_train"
+snapshot_prefix: "output/caffenet_train"
 random_seed: 3
 device_id: 0
 solver_mode: GPU
