@@ -8,7 +8,7 @@ IMG = 'input/train_img_centered.jpg'
 # TARGET_IMG = 'input/test_target_img.jpg'
 TARGET_IMG = 'input/target_img_for_centered.jpg'
 
-MODEL_FILE = 'test.prototxt'
+MODEL_FILE = 'models/caffenet/test.prototxt'
 WEIGHTS_FILE = 'output/caffenet_train_iter_2000.caffemodel'
 IMG_HEIGHT = 227
 IMG_WIDTH = 227

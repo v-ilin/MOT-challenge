@@ -10,8 +10,8 @@ from common import utils
 
 # os.environ['GLOG_minloglevel'] = '2'
 
-MODEL_FILE = 'train.prototxt'
-SOLVER_FILE = 'solver.prototxt'
+MODEL_FILE = 'models/caffenet/train.prototxt'
+SOLVER_FILE = 'models/caffenet/solver.prototxt'
 OUTPUT_DIR = 'output'
 TRAIN_DIR_PATH = '/home/user/vilin/MOT17/FRCNN/train'
 TEST_DIR_PATH = '/home/user/vilin/MOT17/FRCNN/test'
