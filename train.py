@@ -220,7 +220,6 @@ def main():
         net.blobs['bbox'].data[...] = target_bbox_input
 
         solver.step(1)
-        break
 
     # model_filename = 'final_model_{}.caffemodel'.format(datetime.datetime.now().isoformat())
     # model_filepath = os.path.join(OUTPUT_DIR, model_filename)
